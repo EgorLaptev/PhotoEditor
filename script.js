@@ -1,91 +1,115 @@
-
 "use strict";
 
+// Canvas
 let cnv 	= document.getElementById('canv'),
-	ctx		= cnv.getContext('2d');
+		ctx		= cnv.getContext('2d');
 
 cnv.width   = window.innerWidth;
-cnv.height  = window.innerHeight;
+cnv.height  = window.innerWidth;
 
-let imgOpt = {
-	src: 'https://pbs.twimg.com/media/D3O0RSBXsAEey1U.jpg:large',
-	sx: 0,
-	sy: 0, 
-	sWidth: cnv.width,
-	sHeight: cnv.height,
-	dx: 0,
-	dy: 0,
-	update: true,
-	dWidth: cnv.width,
-	dHeight: cnv.width/1.6
-}
+// Image
+let img = new Image(cnv.width, cnv.width/1.6);
 
-let oldImg = {
-	sx: imgOpt.sx,
-	sy: imgOpt.sy,
-	sWidth: imgOpt.sWidth,
-	sHeight: imgOpt.sHeight,
-	dWidth: imgOpt.dWidth,
-	dHeight: imgOpt.dHeight
-}
+img.dx 	= 0;
+img.dy 	= 0;
+img.sx 	= 0;
+img.sy 	= 0;
+img.dw 	= img.width;
+img.dh 	= img.height;
+img.sw 	= img.width;
+img.sh 	= img.height;
 
-let img = new Image(imgOpt.sWidth, imgOpt.sHeight);
-img.src = imgOpt.src;
+let uploadForm	= document.getElementById('uploadForm'),
+		userImage 	= document.getElementById('image');
 
-img.onload = function() { draw() }
+userImage.addEventListener('change', (e)=>{
 
-let magnifier = {
-	x:0,
-	y:0,
-	w:0,
-	h:0,
-	show: false
+	// Достаю файл из формы
+	let file = userImage.files[0];
+
+	// "Читаю" полученную картнку
+	let reader = new FileReader();
+			reader.readAsDataURL(file);
+			reader.onload = function() {
+
+				// Если загружена картинка, то...
+				if(reader.result.search(/data:image\/jpeg;/) != -1) {
+					// Новый путь к картинке,
+					img.src = reader.result;
+
+					draw();
+
+					// Прячу форму после удачной загрузки картинки
+					uploadForm.style.display = 'none';
+				}
+
+			};
+
+});
+
+// CutArea
+let cutArea = {
+	x: 0,
+	y: 0,
+	w: 0,
+	h: 0,
+	v: false
 }
 
 function draw() {
-	ctx.clearRect(0,0,cnv.width,cnv.height);
-	ctx.drawImage(img, oldImg.sx, oldImg.sy, oldImg.sWidth, oldImg.sHeight, imgOpt.dx, imgOpt.dy, oldImg.dWidth, oldImg.dHeight);
-	ctx.fillStyle = 'rgba(0,0,0,.7)';
-	ctx.fillRect(0,0,cnv.width,cnv.height);
 
-	if(imgOpt.update)
-		ctx.drawImage(img, imgOpt.sx, imgOpt.sy, imgOpt.sWidth, imgOpt.sHeight, imgOpt.dx, imgOpt.dy, imgOpt.dWidth, imgOpt.dHeight);		
-	
-	if(magnifier.show) {
-		ctx.fillStyle = 'rgba(50,50,250,.3)';
-		ctx.fillRect(magnifier.x, magnifier.y, magnifier.w, magnifier.h);
-	}
-	
-	requestAnimationFrame(draw);
+	ctx.clearRect(0, 0, cnv.width, cnv.height);
+
+	ctx.beginPath();
+
+	ctx.drawImage(img, img.sx, img.sy, img.sw, img.sh, img.dx, img.dy, img.dw, img.dh);
+
+	if(cutArea.v) drawCutArea();
+
+	ctx.closePath();
+
+	requestAnimationFrame(draw)
 }
 
+function drawCutArea() {
+	ctx.fillStyle 	= 'rgba(75, 75, 250, 0.3)';
+	ctx.strokeStyle = 'rgba(50, 50, 100, 0.8)';
+	ctx.rect(cutArea.x, cutArea.y, cutArea.w, cutArea.h);
+	ctx.fill();
+	ctx.stroke();
+}
+
+let newImg = {};
+
 document.addEventListener('mousedown', (e)=>{
-	imgOpt.update = false;
 
-	imgOpt.sx	= 300;
-	imgOpt.sy 	= 300; 
+	if(img.src != "") {
+		newImg.sx	= e.x;
+		newImg.sy 	= e.y;
 
-	magnifier.x = e.x;
-	magnifier.y = e.y;
-	magnifier.show = true;
+		cutArea.x	= e.x;
+		cutArea.y 	= e.y;
+		cutArea.v 	= true;
+	}
+
 });
 
 document.addEventListener('mousemove', (e)=>{
 
-	magnifier.w = e.x - magnifier.x;
-	magnifier.h = e.y - magnifier.y;
+	cutArea.w 	= e.x - cutArea.x;
+	cutArea.h 	= e.y - cutArea.y;
+
 });
 
 document.addEventListener('mouseup', (e)=>{
+	if(img.src != "") {
+		newImg.sw 	= e.x - newImg.sx;
+		newImg.sh 	= e.y - newImg.sy;
+		newImg.dw 	= newImg.sw;
+		newImg.dh 	= newImg.sh;
+	}
+	Object.assign(img, newImg);
 
-	imgOpt.sWidth	= e.x - imgOpt.sx;
-	imgOpt.sHeight	= e.y - imgOpt.sy;
-
-	imgOpt.dWidth 	= imgOpt.sWidth;
-	imgOpt.dHeight 	= imgOpt.sHeight;
-
-	imgOpt.update  = true;
-	magnifier.show = false;
-
+	cutArea.v = false;
 
 });
